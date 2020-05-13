@@ -49,8 +49,11 @@
 }
 
 - (BOOL)addPayment:(SKPayment *)payment {
-  if (self.transactionsSetter[payment.productIdentifier]) {
-    return NO;
+  for(id key in self.transactionsSetter) {
+    SKPaymentTransaction *transaction = [self.transactionsSetter objectForKey:key];
+      if ([transaction.payment.productIdentifier isEqualToString:payment.productIdentifier]) {
+      return NO;
+    }
   }
   [self.queue addPayment:payment];
   return YES;
@@ -81,7 +84,7 @@
       //    will become impossible for clients to finish deferred transactions when needed.
       // 2. Using product identifiers can help prevent clients from purchasing the same
       //    subscription more than once by accident.
-      self.transactionsSetter[transaction.payment.productIdentifier] = transaction;
+      self.transactionsSetter[transaction.transactionIdentifier] = transaction;
     }
   }
   // notify dart through callbacks.
@@ -93,7 +96,7 @@
     removedTransactions:(NSArray<SKPaymentTransaction *> *)transactions {
   for (SKPaymentTransaction *transaction in transactions) {
     if (transaction.transactionIdentifier) {
-      [self.transactionsSetter removeObjectForKey:transaction.payment.productIdentifier];
+      [self.transactionsSetter removeObjectForKey:transaction.transactionIdentifier];
     }
   }
   self.transactionsRemoved(transactions);
