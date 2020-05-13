@@ -109,6 +109,13 @@ class SKPaymentQueueWrapper {
         transaction.payment.productIdentifier);
   }
 
+  Future<void> finishTransactionWithId(
+      SKPaymentTransactionWrapper transaction) async {
+    await channel.invokeMethod<void>(
+        '-[InAppPurchasePlugin finishTransactionWithId:result:]',
+        transaction.transactionIdentifier);
+  }
+
   /// Restore previously purchased transactions.
   ///
   /// Use this to load previously purchased content on a new device.

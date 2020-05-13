@@ -97,6 +97,8 @@
     [self retrieveReceiptData:call result:result];
   } else if ([@"-[InAppPurchasePlugin refreshReceipt:result:]" isEqualToString:call.method]) {
     [self refreshReceipt:call result:result];
+  } else if ([@"-[InAppPurchasePlugin finishTransactionWithId:result:]" isEqualToString:call.method]) {
+    [self finishTransactionWithId:call result:result];
   } else {
     result(FlutterMethodNotImplemented);
   }
@@ -206,6 +208,48 @@
   NSString *identifier = call.arguments;
   SKPaymentTransaction *transaction =
       [self.paymentQueueHandler.transactions objectForKey:identifier];
+  if (!transaction) {
+    result([FlutterError
+        errorWithCode:@"storekit_platform_invalid_transaction"
+              message:[NSString
+                          stringWithFormat:@"The transaction with transactionIdentifer:%@ does not "
+                                           @"exist. Note that if the transactionState is "
+                                           @"purchasing, the transactionIdentifier will be "
+                                           @"nil(null).",
+                                           transaction.transactionIdentifier]
+              details:call.arguments]);
+    return;
+  }
+  @try {
+    // finish transaction will throw exception if the transaction type is purchasing. Notify dart
+    // about this exception.
+    [self.paymentQueueHandler finishTransaction:transaction];
+  } @catch (NSException *e) {
+    result([FlutterError errorWithCode:@"storekit_finish_transaction_exception"
+                               message:e.name
+                               details:e.description]);
+    return;
+  }
+  result(nil);
+}
+
+- (void)finishTransactionWithId:(FlutterMethodCall *)call result:(FlutterResult)result {
+  if (![call.arguments isKindOfClass:[NSString class]]) {
+    result([FlutterError errorWithCode:@"storekit_invalid_argument"
+                               message:@"Argument type of finishTransaction is not a string."
+                               details:call.arguments]);
+    return;
+  }
+  NSString *identifier = call.arguments;
+  SKPaymentTransaction *transaction = nil;
+  NSArray<SKPaymentTransaction *> *transactions = [self.paymentQueueHandler getUnfinishedTransactions];
+  for (SKPaymentTransaction *t in transactions) {
+    if ([t.transactionIdentifier isEqualToString:identifier]) {
+      transaction = t;
+      break;
+    }
+  }
+
   if (!transaction) {
     result([FlutterError
         errorWithCode:@"storekit_platform_invalid_transaction"
